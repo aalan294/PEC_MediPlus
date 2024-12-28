@@ -11,7 +11,6 @@ const registerPatient = async (req, res) => {
         if (!name || !age || !gender || !contactNumber || !address || !email || !blood || !emergency || !DOB) {
             return res.json({ message: "Fields missing", status: false });
         }
-
         const existingPatient = await Patient.findOne({ email });
         if (existingPatient) {
             throw new Error("Patient already Regsiter")
