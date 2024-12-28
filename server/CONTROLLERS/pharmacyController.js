@@ -1,4 +1,4 @@
-const Pharmacy = require('../Model/PharamacySchema');
+const Pharmacy = require('../MODELS/pharmacySchema');
 const bcrypt = require('bcrypt')
 
 

@@ -1,4 +1,4 @@
-const Hospital = require('../Model/HospitalSchema');
+const Hospital = require('../MODELS/hospitalSchema');
 const bcrypt = require('bcrypt')
 
 const hospitalRequest = async(req,res)=>{
@@ -11,6 +11,7 @@ const hospitalRequest = async(req,res)=>{
         const existingHospital = await Hospital.findOne({email});
         if(existingHospital){
             throw new Error("Hospital already exists");
+            
         }
         const hashedPassword = await bcrypt.hash(email, 10);
         const hospital = new Hospital({

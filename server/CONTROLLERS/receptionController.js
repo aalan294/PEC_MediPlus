@@ -1,4 +1,4 @@
-const Reception = require('../Model/RecepitionSchema');
+const Reception = require('../MODELS/receptionSchema');
 const bcrypt = require('bcrypt')
 
 const receptionLogin = async(req,res)=>{

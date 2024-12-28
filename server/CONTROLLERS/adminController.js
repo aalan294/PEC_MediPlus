@@ -1,7 +1,7 @@
-const Doctor = require('../Model/DoctorSchema');
-const Pharmacy = require('../Model/PharamacySchema');
-const Reception = require('../Model/RecepitionSchema');
-const Hospital = require('../Model/HospitalSchema')
+const Doctor = require('../MODELS/doctorSchema');
+const Pharmacy = require('../MODELS/pharmacySchema');
+const Reception = require('../MODELS/receptionSchema');
+const Hospital = require('../MODELS/hospitalSchema')
 const bcrypt = require('bcrypt')
 
 const registerDoctor = async (req, res) => {
@@ -162,6 +162,10 @@ const getHospitalReq = async(req,res)=>{
     }
 
 }
+
+
+
+
 
 
 module.exports = {getDoctors,getHospital,getPharamaciesReq,getHospitalReq,getPharamacies,getReceptions,registerDoctor,registerPharmacy,registerReception,verifyHospital,verifypharm}
