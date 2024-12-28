@@ -1,4 +1,4 @@
-const Hospital = require('../Model/DoctorSchema');
+const Hospital = require('../Model/HospitalSchema');
 const bcrypt = require('bcrypt')
 
 const hospitalRequest = async(req,res)=>{
