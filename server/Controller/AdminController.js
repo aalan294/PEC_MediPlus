@@ -1,7 +1,7 @@
-const Doctor = require('../MODELS/doctorSchema');
-const Pharmacy = require('../MODELS/pharmacySchema');
-const Reception = require('../MODELS/receptionSchema');
-const Hospital = require('../MODELS/hospitalSchema')
+const Doctor = require('../Model/DoctorSchema');
+const Pharmacy = require('../Model/PharamacySchema');
+const Reception = require('../Model/RecepitionSchema');
+const Hospital = require('../Model/HospitalSchema')
 const bcrypt = require('bcrypt')
 
 const registerDoctor = async (req, res) => {
