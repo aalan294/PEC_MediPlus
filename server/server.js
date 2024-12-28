@@ -8,20 +8,24 @@ const DB_URL = process.env.MONGODB_URL;
 const app = express();
 
 
-mongoose.connect(DB_URL).then(()=>{
+mongoose.connect(DB_URL)
+   .then(()=>{
     console.log("connected to the database")
 })
+   .catch((err)=>{
+    console.log('Error Connection To database.',err.message);
+   })
 
 app.use(cors());
 app.use(express.json());
 
 //routes
-app.use('/hospital')
-app.use('/doctor')
-app.use('/admin')
-app.use('/pharm')
-app.use('/patient')
-app.use('/reception')
+app.use('/hospital',require('./Router/HospitalRouter'));
+app.use('/doctor',require('./Router/DoctorRouter'));
+app.use('/admin',require('./Router/AdminRouter'));
+app.use('/pharm',require('./Router/PharamacyRouter'));
+app.use('/patient',require('./Router/PatientRouter'));
+app.use('/reception',require('./Router/RecepitionRouter'))
 
 
 
