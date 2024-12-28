@@ -1,4 +1,4 @@
-const Patient = require('../MODELS/patientSchema');
+const Patient = require('../Model/PatientSchema');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
