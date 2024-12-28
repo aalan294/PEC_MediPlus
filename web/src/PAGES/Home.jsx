@@ -12,7 +12,7 @@ const Home = () => {
     <div>
      
       <nav className="nav2">
-        <h2>MediSphere</h2>
+        <h2>MediPlus</h2>
         <ul>
           <li><Link to={'/doctor/login'} >DOCTOR</Link></li>
           <li><Link to={'/hospital/login'} >HOSPITAL</Link></li>
@@ -57,7 +57,7 @@ const Home = () => {
         </div>
       </footer> */}
       <footer className="footer2">
-        <p>Copyrights © 2024 All Rights Reserved, Powered by <span>MediSphere</span>.</p>
+        <p>Copyrights © 2024 All Rights Reserved, Powered by <span>MediPlus</span>.</p>
       </footer>
     </div>
   );
