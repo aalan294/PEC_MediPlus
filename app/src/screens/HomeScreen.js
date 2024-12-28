@@ -254,7 +254,7 @@ const HomeScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Appointments')}
         >
           <Icon name="calendar-today" size={24} color="#666" />
-          <Text style={styles.navText}>Appointments</Text>
+          <Text style={styles.navText}>Perception</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.navItem}
