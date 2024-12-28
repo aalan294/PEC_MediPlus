@@ -4,13 +4,13 @@ import Home from './PAGES/Home'
 
 //admin
 import AdminLogin from './PAGES/admin/AdminLogin'
-import AdminDashboard from './PAGES/admin/AdminDashboard'
+import AdminDashBoard from './PAGES/admin/AdminDashBoard'
 import NewHospital from './PAGES/admin/NewHospital';
 import NewPharmacy from './PAGES/admin/NewPharmacy'
 
 //hospital
 import HospitalLogin from './PAGES/hospital/HospitalLogin';
-import HospitalDashboard from './PAGES/hospital/HospitalDashboard';
+import HospitalDashBoard from './PAGES/hospital/HospitalDashBoard';
 import HospitalRequest from './PAGES/hospital/HospitalRequest';
 import NewDoctor from './PAGES/hospital/NewDoctor';
 import NewReceptionist from './PAGES/hospital/NewReceptionist';
@@ -46,7 +46,7 @@ const App = () => {
 
         {/* admin Routes */}
          <Route path='/admin/login' element={<AdminLogin/>}/> {/* done */}
-        <Route path='/admin/dashboard' element={<AdminDashboard/>} />  {/* done */}
+        <Route path='/admin/dashboard' element={<AdminDashBoard/>} />  {/* done */}
 
         <Route path='/admin/new-hos' element={<NewHospital/>} />  {/* done */}
 
@@ -56,7 +56,7 @@ const App = () => {
         {/* hospital routes */}
         <Route path='/hospital/request' element={<HospitalRequest/>} />  {/* done */}
         <Route path='/hospital/login' element={<HospitalLogin/>} />      {/*done */}                                        
-        <Route path='/hospital/dashboard' element={<HospitalDashboard/>} />{/*done */}
+        <Route path='/hospital/dashboard' element={<HospitalDashBoard/>} />{/*done */}
         <Route path='/hospital/new-doc' element={<NewDoctor/>} /> {/* done */}
         <Route path='/hospital/new-recep' element={<NewReceptionist/>} /> {/* done */}
         <Route path='/hospital/unverified' element={<UnverifiedH/>} />  {/* done */}
