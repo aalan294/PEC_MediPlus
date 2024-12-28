@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   Image,
   Dimensions,
   Animated,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import * as Animatable from 'react-native-animatable';
+import { BlurView } from 'expo-blur';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
@@ -24,174 +26,251 @@ const HomeScreen = ({ navigation }) => {
     Poppins_700Bold,
   });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  const specialtyAnimations = useRef(
-    Array.from({ length: 4 }, () => new Animated.Value(0))
-  ).current;
+  const [isLoading, setIsLoading] = useState(true);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      ...specialtyAnimations.map((anim, index) =>
-        Animated.spring(anim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          delay: index * 100,
-          useNativeDriver: true,
-        })
-      ),
-    ]).start();
+    setTimeout(() => setIsLoading(false), 2000);
   }, []);
 
-  const scrollY = new Animated.Value(0);
-  const headerHeight = scrollY.interpolate({
+  const headerTranslateY = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [400, 300],
+    outputRange: [0, -50],
+    extrapolate: 'clamp',
+  });
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.9],
     extrapolate: 'clamp',
   });
 
   const specialties = [
-    { id: 1, name: 'Cardiology', icon: 'favorite', color: '#4A90E2' },
-    { id: 2, name: 'Pediatrics', icon: 'child-care', color: '#FF9500' },
-    { id: 3, name: 'Neurology', icon: 'psychology', color: '#4A90E2' },
-    { id: 4, name: 'Orthopedics', icon: 'accessibility', color: '#FF9500' },
+    { 
+      id: 1, 
+      name: 'Cardiology', 
+      icon: 'favorite', 
+      gradient: ['#FF6B6B', '#FF8E8E'],
+      description: 'Heart Care'
+    },
+    { 
+      id: 2, 
+      name: 'Pediatrics', 
+      icon: 'child-care', 
+      gradient: ['#4FACFE', '#00F2FE'],
+      description: 'Child Healthcare'
+    },
+    { 
+      id: 3, 
+      name: 'Neurology', 
+      icon: 'psychology', 
+      gradient: ['#FA709A', '#FEE140'],
+      description: 'Brain & Nerve Care'
+    },
+    { 
+      id: 4, 
+      name: 'Orthopedics', 
+      icon: 'accessibility', 
+      gradient: ['#43E97B', '#38F9D7'],
+      description: 'Bone & Joint Care'
+    },
   ];
 
-  if (!fontsLoaded) {
-    return null;
+  if (!fontsLoaded || isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Animatable.View animation="rotate" iterationCount="infinite" duration={2000}>
+          <LinearGradient
+            colors={['#4A90E2', '#357ABD']}
+            style={styles.loadingIcon}
+          >
+            <Icon name="local-hospital" size={40} color="#FFF" />
+          </LinearGradient>
+        </Animatable.View>
+        <Animatable.Text 
+          animation="pulse" 
+          iterationCount="infinite"
+          style={styles.loadingText}
+        >
+          Loading MediPlus...
+        </Animatable.Text>
+      </View>
+    );
   }
+
+  const renderHeader = () => (
+    <Animated.View 
+      style={[
+        styles.header,
+        {
+          transform: [{ translateY: headerTranslateY }],
+          opacity: headerOpacity,
+        }
+      ]}
+    >
+      <LinearGradient
+        colors={['#4A90E2', '#357ABD']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <Animatable.Text animation="fadeInDown" style={styles.welcomeText}>
+            Welcome to
+          </Animatable.Text>
+          <Animatable.Text animation="fadeInUp" style={styles.headerTitle}>
+            MediPlus
+          </Animatable.Text>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.header, { height: headerHeight }]}>
-        <LinearGradient
-          colors={['#4A90E2', '#357ABD']}
-          style={styles.gradient}
-        >
-          <View style={styles.waveContainer}>
-            <Svg
-              height="100"
-              width="100%"
-              viewBox="1 0 1440 320"
-              style={styles.waveSvg}
-            >
-              <Path
-                fill="#ffffff"
-                d="M0,32L48,53.3C96,75,192,117,288,122.7C384,128,480,96,576,85.3C672,75,768,85,864,106.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-              />
-            </Svg>
-          </View>
-          <Animated.View style={[styles.headerContent, { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}>
-            <Text style={styles.welcomeText}>Welcome to</Text>
-            <Text style={styles.headerTitle}>MediPlus</Text>
-            <Text style={styles.subTitle}>Your Health, Our Priority</Text>
-          </Animated.View>
-        </LinearGradient>
-      </Animated.View>
+      <StatusBar barStyle="light-content" backgroundColor="#4A90E2" />
+      
+      {renderHeader()}
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: true }
         )}
+        scrollEventThrottle={16}
       >
-        <Animated.View style={[styles.searchBar, { opacity: fadeAnim }]}>
-          <Icon name="search" size={24} color="#4A90E2" />
-          <TextInput
-            placeholder="Search doctors, specialties..."
-            style={styles.searchInput}
-            placeholderTextColor="#999"
-          />
-        </Animated.View>
+        <View style={styles.searchContainer}>
+          <BlurView intensity={80} style={styles.searchBar}>
+            <Icon name="search" size={24} color="#4A90E2" />
+            <TextInput
+              placeholder="Search doctors, specialties..."
+              style={styles.searchInput}
+              placeholderTextColor="#666"
+            />
+          </BlurView>
+        </View>
 
-        <Animated.Text style={[styles.sectionTitle, { opacity: fadeAnim }]}>Medical Services</Animated.Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.specialtiesScroll}
-        >
-          {specialties.map((specialty, index) => (
-            <Animated.View
-              key={specialty.id}
-              style={[
-                { transform: [{ scale: specialtyAnimations[index] }] }
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.specialtyCard}
-                onPress={() => navigation.navigate('DoctorList', { specialty: specialty.name })}
+        <View style={styles.servicesSection}>
+          <Text style={styles.sectionTitle}>Medical Services</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.specialtiesContainer}
+          >
+            {specialties.map((specialty, index) => (
+              <Animatable.View
+                key={specialty.id}
+                animation="fadeInRight"
+                delay={index * 100}
               >
-                <LinearGradient
-                  colors={[specialty.color, specialty.color + 'DD']}
-                  style={styles.specialtyGradient}
+                <TouchableOpacity
+                  style={styles.specialtyCard}
+                  onPress={() => navigation.navigate('DoctorList', { specialty: specialty.name })}
                 >
-                  <Icon name={specialty.icon} size={32} color="#FFF" />
-                </LinearGradient>
-                <Text style={styles.specialtyName}>{specialty.name}</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </ScrollView>
+                  <LinearGradient
+                    colors={specialty.gradient}
+                    style={styles.specialtyGradient}
+                  >
+                    <Icon name={specialty.icon} size={32} color="#FFF" />
+                  </LinearGradient>
+                  <Text style={styles.specialtyName}>{specialty.name}</Text>
+                  <Text style={styles.specialtyDescription}>{specialty.description}</Text>
+                </TouchableOpacity>
+              </Animatable.View>
+            ))}
+          </ScrollView>
+        </View>
 
-        <Animated.View style={[styles.appointmentsSection, { opacity: fadeAnim }]}>
+        <View style={styles.appointmentsSection}>
           <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
           <TouchableOpacity
             style={styles.appointmentCard}
             onPress={() => navigation.navigate('Appointments')}
           >
-            <View style={styles.appointmentLeft}>
-              <LinearGradient
-                colors={['#4A90E2', '#357ABD']}
-                style={styles.doctorAvatarGradient}
-              >
-                <Icon name="person" size={30} color="#FFF" />
-              </LinearGradient>
-            </View>
-            <View style={styles.appointmentInfo}>
-              <Text style={styles.doctorName}>Dr. Sarah Johnson</Text>
-              <Text style={styles.appointmentTime}>Today, 2:30 PM</Text>
-              <View style={styles.appointmentType}>
-                <Icon name="favorite" size={16} color="#4A90E2" />
-                <Text style={styles.appointmentTypeText}>Cardiology</Text>
+            <LinearGradient
+              colors={['#4A90E2', '#357ABD']}
+              style={styles.appointmentGradient}
+            >
+              <View style={styles.appointmentContent}>
+                <Image
+                  source={{ uri: 'https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg' }}
+                  style={styles.doctorAvatar}
+                />
+                <View style={styles.appointmentInfo}>
+                  <Text style={styles.doctorName}>Dr. Sarah Johnson</Text>
+                  <Text style={styles.appointmentTime}>Today, 2:30 PM</Text>
+                  <View style={styles.appointmentType}>
+                    <Icon name="favorite" size={16} color="#FFF" />
+                    <Text style={styles.appointmentTypeText}>Cardiology</Text>
+                  </View>
+                </View>
               </View>
-            </View>
-            <Icon name="chevron-right" size={24} color="#4A90E2" />
+            </LinearGradient>
           </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
+        </View>
 
-      <Animated.View style={[styles.bottomNav, { opacity: fadeAnim }]}>
-        <TouchableOpacity style={styles.navItem}>
+        <View style={styles.quickAccessSection}>
+          <Text style={styles.sectionTitle}>Quick Access</Text>
+          <View style={styles.quickAccessGrid}>
+            {['Lab Reports', 'Medications', 'Insurance', 'Emergency'].map((item, index) => (
+              <Animatable.View
+                key={item}
+                animation="zoomIn"
+                delay={index * 100}
+              >
+                <TouchableOpacity style={styles.quickAccessCard}>
+                  <LinearGradient
+                    colors={['#4A90E2', '#357ABD']}
+                    style={styles.quickAccessGradient}
+                  >
+                    <Icon 
+                      name={
+                        index === 0 ? 'science' :
+                        index === 1 ? 'medical-services' :
+                        index === 2 ? 'security' : 'emergency'
+                      } 
+                      size={24} 
+                      color="#FFF" 
+                    />
+                  </LinearGradient>
+                  <Text style={styles.quickAccessText}>{item}</Text>
+                </TouchableOpacity>
+              </Animatable.View>
+            ))}
+          </View>
+        </View>
+      </Animated.ScrollView>
+
+      <BlurView intensity={100} style={styles.bottomNav}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Home')}
+        >
           <Icon name="home" size={24} color="#4A90E2" />
-          <Text style={styles.navText}>Home</Text>
+          <Text style={[styles.navText, { color: '#4A90E2' }]}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Appointments')}
+        >
           <Icon name="calendar-today" size={24} color="#666" />
-          <Text style={[styles.navText, { color: '#666' }]}>Appointments</Text>
+          <Text style={styles.navText}>Appointments</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Messages')}
+        >
           <Icon name="chat" size={24} color="#666" />
-          <Text style={[styles.navText, { color: '#666' }]}>Messages</Text>
+          <Text style={styles.navText}>Messages</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Profile')}
+        >
           <Icon name="person" size={24} color="#666" />
-          <Text style={[styles.navText, { color: '#666' }]}>Profile</Text>
+          <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
-      </Animated.View>
+      </BlurView>
     </View>
   );
 };
@@ -199,200 +278,241 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F6FA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F6FA',
+  },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loadingText: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 18,
+    color: '#4A90E2',
   },
   header: {
-    width: '100%',
-    overflow: 'hidden',
-    height: 400,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
-  gradient: {
-    flex: 1,
-    paddingTop: 20,
+  headerGradient: {
+    height: height * 0.25,
+    paddingTop: StatusBar.currentHeight + 20,
     paddingHorizontal: 20,
   },
   headerContent: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -170,
-  },
-  waveContainer: {
-    position: 'absolute',
-    bottom: 90,
-    left: 0,
-    right: 0,
-    height: 10,
-  },
-  waveSvg: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    height: '100px',
   },
   welcomeText: {
     fontFamily: 'Poppins_400Regular',
-    fontSize: 48,
-    color: '#fff',
+    fontSize: 24,
+    color: '#FFF',
     opacity: 0.9,
-    textAlign: 'left',
   },
   headerTitle: {
     fontFamily: 'Poppins_700Bold',
-    fontSize: 56,
-    color: '#fff',
-    marginTop: -20,
-    textAlign: 'left',
+    fontSize: 36,
+    color: '#FFF',
+    marginTop: -5,
   },
-  subTitle: {
-    fontFamily: 'Poppins_400Bold',
-    fontSize: 20,
-    color: '#fff',
-    marginTop: -20,
-    textAlign: 'left',
-  },
-  content: {
+  scrollView: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    marginTop: -130,
-    paddingTop: 30,
-    position: 'relative',
-    zIndex: 1,
+  },
+  scrollContent: {
+    paddingTop: height * 0.2,
+    paddingBottom: 100,
+  },
+  searchContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 20,
-    padding: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 15,
+    padding: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 5,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontFamily: 'Poppins_400Regular',
-    fontSize: 14,
+    fontSize: 16,
+    color: '#333',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: 'Poppins_600SemiBold',
-    margin: 20,
-    marginBottom: 15,
     color: '#333',
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
-  specialtiesScroll: {
-    paddingLeft: 20,
+  servicesSection: {
+    marginBottom: 30,
+  },
+  specialtiesContainer: {
+    paddingHorizontal: 20,
   },
   specialtyCard: {
-    alignItems: 'center',
-    marginRight: 15,
-    width: 100,
-    transform: [{ scale: 1 }],
-  },
-  specialtyGradient: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  specialtyName: {
-    marginTop: 8,
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#333',
-    textAlign: 'center',
-  },
-  appointmentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: width * 0.4,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
     padding: 15,
-    marginHorizontal: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    marginRight: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-    marginBottom: 20,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  appointmentLeft: {
-    marginRight: 15,
-  },
-  doctorAvatarGradient: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
+  specialtyGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  specialtyName: {
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  specialtyDescription: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#666',
+  },
+  appointmentsSection: {
+    marginBottom: 30,
+  },
+  appointmentCard: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  appointmentGradient: {
+    padding: 20,
+  },
+  appointmentContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  doctorAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
   appointmentInfo: {
     flex: 1,
   },
   doctorName: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#333',
+    color: '#FFF',
+    marginBottom: 5,
   },
   appointmentTime: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
-    color: '#666',
-    marginTop: 2,
+    color: '#FFF',
+    opacity: 0.9,
   },
   appointmentType: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 5,
   },
   appointmentTypeText: {
-    marginLeft: 4,
+    marginLeft: 5,
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
-    color: '#4A90E2',
+    color: '#FFF',
+    opacity: 0.9,
   },
-  bottomNav: {
+  quickAccessSection: {
+    marginBottom: 30,
+  },
+  quickAccessGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+  },
+  quickAccessCard: {
+    width: (width - 60) / 2,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 15,
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    paddingBottom: 30,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 5,
+  },
+  quickAccessGradient: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quickAccessText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#333',
+  },
+  bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingVertical: 10,
+    paddingBottom: 25,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   navItem: {
-    alignItems: 'center',
     flex: 1,
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 10,
   },
   navText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_400Regular',
-    marginTop: 6,
+    color: '#666',
+    marginTop: 5,
   },
 });
 
