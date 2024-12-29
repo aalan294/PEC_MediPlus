@@ -254,7 +254,7 @@ const HomeScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Appointments')}
         >
           <Icon name="calendar-today" size={24} color="#666" />
-          <Text style={styles.navText}>Perception</Text>
+          <Text style={styles.navText}>Prescription</Text>
         </TouchableOpacity>
        
         <TouchableOpacity 
@@ -311,15 +311,15 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontFamily: 'Poppins_400Regular',
-    fontSize: 24,
+    fontSize: 30,
     color: '#FFF',
     opacity: 0.9,
   },
   headerTitle: {
     fontFamily: 'Poppins_700Bold',
-    fontSize: 36,
+    fontSize: 60,
     color: '#FFF',
-    marginTop: -5,
+    marginTop: -15,
   },
   scrollView: {
     flex: 1,
@@ -343,6 +343,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
+    marginTop: 60,
   },
   searchInput: {
     flex: 1,
@@ -375,6 +376,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
+    marginBottom: 10,
   },
   specialtyGradient: {
     width: 60,
