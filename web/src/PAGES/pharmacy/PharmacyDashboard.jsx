@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
@@ -88,6 +88,7 @@ const Button = styled(motion.button)`
 
 const PharmacyDashboard = () => {
   const [pharmacyData, setPharmacyData] = useState(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -96,11 +97,13 @@ const PharmacyDashboard = () => {
     }
 
     // Three.js background setup
-    const canvas = document.getElementById('bg-canvas');
+    if (!canvasRef.current) return;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
 
     const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
     const material = new THREE.MeshStandardMaterial({ color: 0x4A90E2 });
@@ -113,6 +116,14 @@ const PharmacyDashboard = () => {
     scene.add(torus, pointLight, ambientLight);
     camera.position.z = 30;
 
+    // Handle window resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
     function animate() {
       requestAnimationFrame(animate);
       torus.rotation.x += 0.01;
@@ -123,6 +134,10 @@ const PharmacyDashboard = () => {
     animate();
 
     return () => {
+      window.removeEventListener('resize', handleResize);
+      if (canvasRef.current?.contains(renderer.domElement)) {
+        canvasRef.current.removeChild(renderer.domElement);
+      }
       scene.remove(torus);
       geometry.dispose();
       material.dispose();
@@ -133,7 +148,7 @@ const PharmacyDashboard = () => {
   if (!pharmacyData) {
     return (
       <Container>
-        <BgCanvas id="bg-canvas" />
+        <BgCanvas ref={canvasRef} />
         <InfoCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -148,7 +163,7 @@ const PharmacyDashboard = () => {
 
   return (
     <Container>
-      <BgCanvas id="bg-canvas" />
+      <BgCanvas ref={canvasRef} />
       <InfoCard
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

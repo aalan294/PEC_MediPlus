@@ -19,59 +19,63 @@ const ScannerLogin = () => {
   const [url, setUrl] = useState('');
   const canvasRef = useRef(null);
 
+  // Three.js background setup
   useEffect(() => {
-    // Three.js background setup
+    if (!canvasRef.current) return;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     canvasRef.current.appendChild(renderer.domElement);
 
-    // Create animated background elements
-    const geometry = new THREE.IcosahedronGeometry(1, 1);
-    const material = new THREE.MeshPhongMaterial({
+    const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
+    const material = new THREE.MeshStandardMaterial({ 
       color: 0x4A90E2,
       wireframe: true,
       transparent: true,
       opacity: 0.3
     });
+    const torus = new THREE.Mesh(geometry, material);
 
-    const meshes = [];
-    for (let i = 0; i < 20; i++) {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(
-        Math.random() * 20 - 10,
-        Math.random() * 20 - 10,
-        Math.random() * 20 - 10
-      );
-      mesh.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI,
-        Math.random() * Math.PI
-      );
-      scene.add(mesh);
-      meshes.push(mesh);
-    }
+    const pointLight = new THREE.PointLight(0xffffff);
+    pointLight.position.set(5, 5, 5);
+    const ambientLight = new THREE.AmbientLight(0xffffff);
+    
+    scene.add(torus, pointLight, ambientLight);
+    camera.position.z = 30;
 
-    // Add lights
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 0, 1);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
-
-    camera.position.z = 5;
-
-    const animate = () => {
-      requestAnimationFrame(animate);
-      meshes.forEach(mesh => {
-        mesh.rotation.x += 0.001;
-        mesh.rotation.y += 0.001;
-      });
-      renderer.render(scene, camera);
+    // Handle window resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     };
+    window.addEventListener('resize', handleResize);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      torus.rotation.x += 0.01;
+      torus.rotation.y += 0.005;
+      torus.rotation.z += 0.01;
+      renderer.render(scene, camera);
+    }
     animate();
 
-    // Initialize Web3
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (canvasRef.current?.contains(renderer.domElement)) {
+        canvasRef.current.removeChild(renderer.domElement);
+      }
+      scene.remove(torus);
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  // Initialize Web3 and contract instance
+  useEffect(() => {
     const initWeb3 = async () => {
       if (window.ethereum) {
         const web3Instance = new Web3(window.ethereum);
@@ -92,10 +96,6 @@ const ScannerLogin = () => {
     };
 
     initWeb3();
-
-    return () => {
-      renderer.dispose();
-    };
   }, []);
 
   // Fetch prescription details
@@ -104,15 +104,27 @@ const ScannerLogin = () => {
       if (contract && id) {
         try {
           const prescriptionData = await contract.methods.getPrescription(id).call();
+          console.log('Prescription Data:', prescriptionData);
+          
+          // Ensure medicines is always an array
+          const medicines = Array.isArray(prescriptionData[5]) 
+            ? prescriptionData[5] 
+            : prescriptionData[5] ? [prescriptionData[5]] : [];
+            
+          // Ensure allergies is always an array
+          const allergies = Array.isArray(prescriptionData[7])
+            ? prescriptionData[7]
+            : prescriptionData[7] ? [prescriptionData[7]] : [];
+
           setPrescription({
             prescriptionId: prescriptionData[0].toString(),
             userId: prescriptionData[1],
             timestamp: new Date(parseInt(prescriptionData[2]) * 1000),
             description: prescriptionData[3],
             dept: prescriptionData[4].toString(),
-            medicines: prescriptionData[5],
+            medicines: medicines,
             documents: prescriptionData[6],
-            allergies: prescriptionData[7],
+            allergies: allergies,
             isFulfilled: prescriptionData[8],
           });
           setIsFulfilled(prescriptionData[8]);
@@ -171,41 +183,49 @@ const ScannerLogin = () => {
         </Title>
 
         <InfoGrid>
-          <InfoRow>
-            <Label>Prescription ID:</Label>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Prescription ID</Label>
             <Value>{prescription.prescriptionId}</Value>
           </InfoRow>
-          <InfoRow>
-            <Label>User ID:</Label>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>User ID</Label>
             <Value>{prescription.userId}</Value>
           </InfoRow>
-          <InfoRow>
-            <Label>Timestamp:</Label>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Timestamp</Label>
             <Value>{prescription.timestamp.toString()}</Value>
           </InfoRow>
-          <InfoRow>
-            <Label>Department:</Label>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Department</Label>
             <Value>{prescription.dept}</Value>
           </InfoRow>
         </InfoGrid>
 
         <DetailSection>
-          <Label>Description:</Label>
+          <Label>Description</Label>
           <DetailText>{prescription.description}</DetailText>
         </DetailSection>
 
         <DetailSection>
-          <Label>Medicines:</Label>
-          <DetailText>{prescription.medicines.join(', ')}</DetailText>
+          <Label>Medicines</Label>
+          <DetailText>
+            {Array.isArray(prescription.medicines) && prescription.medicines.length > 0
+              ? prescription.medicines.join(', ')
+              : 'No medicines prescribed'}
+          </DetailText>
         </DetailSection>
 
         <DetailSection>
-          <Label>Allergies:</Label>
-          <DetailText>{prescription.allergies.length > 0 ? prescription.allergies.join(', ') : 'None'}</DetailText>
+          <Label>Allergies</Label>
+          <DetailText>
+            {Array.isArray(prescription.allergies) && prescription.allergies.length > 0
+              ? prescription.allergies.join(', ')
+              : 'None'}
+          </DetailText>
         </DetailSection>
 
         <DetailSection>
-          <Label>Documents:</Label>
+          <Label>Documents</Label>
           <DocumentGrid>
             {prescription.documents.map((doc, index) => (
               <DocumentItem key={index}>
@@ -218,14 +238,18 @@ const ScannerLogin = () => {
         </DetailSection>
 
         <StatusSection>
-          <Label>Status:</Label>
-          <StatusText fulfilled={isFulfilled}>
-            {isFulfilled ? 'Fulfilled' : 'Not Fulfilled'}
+          <Label>Status</Label>
+          <StatusText fulfilled={!isFulfilled}>
+            {!isFulfilled ? 'Fulfilled' : 'Not Fulfilled'}
           </StatusText>
         </StatusSection>
 
-        {!isFulfilled && (
-          <ActionButton onClick={fulfillPrescription}>
+        {isFulfilled && (
+          <ActionButton
+            onClick={fulfillPrescription}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             Update Prescription as Fulfilled
           </ActionButton>
         )}
@@ -357,11 +381,6 @@ const ActionButton = styled(motion.button)`
   border-radius: 8px;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: transform 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
 `;
 
 const LoadingMessage = styled.div`
@@ -371,6 +390,7 @@ const LoadingMessage = styled.div`
   height: 100vh;
   font-size: 1.5rem;
   color: #4A90E2;
+  background-color: #121212;
 `;
 
 const ErrorMessage = styled(LoadingMessage)`

@@ -164,6 +164,7 @@ const HospitalLogin = () => {
     setError('');
 
     try {
+      console.log(loginData);
       const response = await api.post('/hospital/login', loginData);
 
       if (response.data.status) {

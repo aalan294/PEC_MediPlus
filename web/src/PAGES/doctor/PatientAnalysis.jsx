@@ -132,31 +132,70 @@ const PatientAnalysis = () => {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+
     // Three.js background setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     containerRef.current.appendChild(renderer.domElement);
 
-    // Add animated particles
+    // Create geometry for particles
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    
+    // Create 1000 particles
+    for (let i = 0; i < 1000; i++) {
+      vertices.push(
+        (Math.random() - 0.5) * 10, // x
+        (Math.random() - 0.5) * 10, // y
+        (Math.random() - 0.5) * 10  // z
+      );
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    
+    // Create particles
     const particles = new THREE.Points(
-      new THREE.BufferGeometry(),
-      new THREE.PointsMaterial({ color: '#4A90E2', size: 0.05 })
+      geometry,
+      new THREE.PointsMaterial({
+        color: '#4A90E2',
+        size: 0.05,
+        transparent: true,
+        opacity: 0.6,
+        sizeAttenuation: true
+      })
     );
+    
     scene.add(particles);
-    camera.position.z = 2;
+    camera.position.z = 5;
+
+    // Handle window resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
 
     const animate = () => {
       requestAnimationFrame(animate);
-      particles.rotation.x += 0.001;
+      particles.rotation.x += 0.0005;
       particles.rotation.y += 0.001;
       renderer.render(scene, camera);
     };
     animate();
 
+    // Cleanup
     return () => {
-      containerRef.current?.removeChild(renderer.domElement);
+      window.removeEventListener('resize', handleResize);
+      if (containerRef.current?.contains(renderer.domElement)) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+      geometry.dispose();
+      particles.material.dispose();
+      renderer.dispose();
     };
   }, []);
 
