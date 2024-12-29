@@ -8,21 +8,69 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
+import axios from 'axios';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password.');
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      console.log('Attempting login with:', { email, password });
+      const response = await axios.post(
+        'http://192.168.32.227:3500/patient/login', // Replace with your machine's local IP
+        { email, password },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 5000,
+        }
+      );
+      
+      console.log('Response from backend:', response.data);
+  
+      if (response.status === 200) {
+        
+        navigation.navigate('Home');
+      } else {
+        Alert.alert('Error', response.data.message || 'Login failed.');
+      }
+    } catch (error) {
+      console.error('Error during login:', error.message);
+      console.error('Error details:', error.response?.data);
+      if (error.message === 'Network Error') {
+        Alert.alert(
+          'Network Error',
+          'Unable to connect to the server. Please check your internet connection or server status.'
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          error.response?.data?.message || 'An error occurred. Please try again.'
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Image
-        source={require('../../assets/icon.png')}
-        style={styles.logo}
-      />
+      <Image source={require('../../assets/icon.png')} style={styles.logo} />
       <Text style={styles.title}>Welcome Back</Text>
       <TextInput
         style={styles.input}
@@ -41,17 +89,12 @@ const LoginScreen = ({ navigation }) => {
         secureTextEntry
         placeholderTextColor="#aaa"
       />
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('Home')}
-      >
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Register')}
-      >
+      {/* <TouchableOpacity onPress={() => navigation.navigate('Register')}>
         <Text style={styles.linkText}>Don't have an account? Register</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </KeyboardAvoidingView>
   );
 };
