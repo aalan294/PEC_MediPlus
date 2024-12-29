@@ -1,99 +1,104 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../../API/api';
 import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
+import { Link } from 'react-router-dom';
 
-// Styled Components with Blue and White Theme
 const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: #f0f4f8;
-  padding: 20px;
+  min-height: 100vh;
+  background-color: #121212;
   position: relative;
+  overflow: hidden;
+  padding: 2rem;
 `;
 
-const SectionContainer = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-  flex-grow: 1;
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 `;
 
-const Section = styled.div`
-  width: 30%;
-  padding: 20px;
-  background-color: #ffffff;
-  border: 1px solid #007bff;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+const ContentWrapper = styled(motion.div)`
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 4rem;
 `;
 
-const Header = styled.h2`
+const Title = styled(motion.h2)`
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
   text-align: center;
-  color: #007bff;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
-const List = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin-top: 10px;
+const DashboardGrid = styled(motion.div)`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  margin-top: 2rem;
 `;
 
-const ListItem = styled.li`
-  margin: 10px 0;
-  padding: 10px;
-  background-color: #f9f9f9;
-  border: 1px solid #007bff;
-  border-radius: 5px;
+const Card = styled(motion.div)`
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  color: #fff;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+  }
 `;
 
-const CountSection = styled.div`
+const StatsContainer = styled(motion.div)`
   display: flex;
   justify-content: space-around;
-  padding: 20px;
-  background-color: #007bff;
-  border-radius: 10px;
-  color: white;
+  margin-bottom: 2rem;
 `;
 
-const CountBox = styled.div`
-  padding: 15px;
-  background-color: #0056b3;
-  border-radius: 8px;
-  font-size: 18px;
-  color: #fff;
-  width: 150px;
+const StatCard = styled(motion.div)`
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  padding: 1.5rem;
+  min-width: 200px;
   text-align: center;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(74, 144, 226, 0.3);
 `;
 
-const HamburgerMenu = styled.div`
-  position: absolute;
+const NavMenu = styled(motion.div)`
+  position: fixed;
   top: 20px;
   right: 20px;
-  background-color: #007bff;
-  padding: 10px;
-  border-radius: 5px;
+  z-index: 10;
+`;
+
+const NavButton = styled(motion.button)`
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  color: #fff;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
-  color: white;
-`;
+  font-size: 1rem;
+  backdrop-filter: blur(10px);
 
-const DropdownMenu = styled.div`
-  position: absolute;
-  top: 60px;
-  right: 20px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-`;
-
-const DropdownItem = styled.a`
-  display: block;
-  padding: 10px;
-  text-decoration: none;
-  color: #007bff;
   &:hover {
-    background-color: #f5f5f5;
+    background: rgba(74, 144, 226, 0.2);
   }
 `;
 
@@ -101,17 +106,55 @@ const HospitalDashBoard = () => {
   const [doctors, setDoctors] = useState([]);
   const [receptionists, setReceptionists] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const canvasRef = useRef();
 
-  // Fetch all doctors, pharmacies, and receptionists
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
+
+    const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x4A90E2,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.1
+    });
+    const torus = new THREE.Mesh(geometry, material);
+    scene.add(torus);
+
+    camera.position.z = 30;
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      torus.rotation.x += 0.01;
+      torus.rotation.y += 0.005;
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      canvasRef.current?.removeChild(renderer.domElement);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        
         const receptionistRes = await api.get('/hospital/get-recep');
         const doctorRes = await api.get('/hospital/get-doc');
-        console.log(receptionistRes.data.receptions,doctorRes.data.doctors)
-   
-
         setDoctors(doctorRes.data.doctors);
         setReceptionists(receptionistRes.data.receptions);
       } catch (error) {
@@ -122,58 +165,91 @@ const HospitalDashBoard = () => {
     fetchData();
   }, []);
 
-  // Toggle dropdown visibility
-  const toggleDropdown = () => {
-    setShowDropdown(!showDropdown);
-  };
-
   return (
     <Container>
-      {/* Hamburger Menu */}
-      <HamburgerMenu onClick={toggleDropdown}>☰</HamburgerMenu>
-      {showDropdown && (
-        <DropdownMenu>
-          <DropdownItem href="/hospital/new-doc">Register Doctor</DropdownItem>
-          <DropdownItem href="/hospital/new-recep">Register Receptionist</DropdownItem>
-        </DropdownMenu>
-      )}
+      <BgCanvas ref={canvasRef} />
+      
+      <ContentWrapper
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <NavMenu>
+          <NavButton onClick={() => setShowDropdown(!showDropdown)}>
+            Menu
+          </NavButton>
+          {showDropdown && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                background: 'rgba(26, 26, 26, 0.9)',
+                padding: '1rem',
+                borderRadius: '8px',
+                marginTop: '0.5rem'
+              }}
+            >
+              <Link to="/hospital/new-doc" style={{ color: '#fff', display: 'block', margin: '0.5rem 0' }}>
+                Register Doctor
+              </Link>
+              <Link to="/hospital/new-recep" style={{ color: '#fff', display: 'block', margin: '0.5rem 0' }}>
+                Register Receptionist
+              </Link>
+            </motion.div>
+          )}
+        </NavMenu>
 
-      {/* Count Section */}
-      <CountSection>
-        <CountBox>Doctors: {doctors.length}</CountBox>
-        <CountBox>Receptionists: {receptionists.length}</CountBox>
-      </CountSection>
+        <Title
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          Hospital Dashboard
+        </Title>
 
-      {/* Section Container */}
-      <SectionContainer>
-        {/* Left Section: Doctors */}
-        <Section>
-          <Header>Doctors</Header>
-          <List>
+        <StatsContainer>
+          <StatCard whileHover={{ scale: 1.05 }}>
+            <h3>Total Doctors</h3>
+            <h2>{doctors.length}</h2>
+          </StatCard>
+          <StatCard whileHover={{ scale: 1.05 }}>
+            <h3>Total Receptionists</h3>
+            <h2>{receptionists.length}</h2>
+          </StatCard>
+        </StatsContainer>
+
+        <DashboardGrid>
+          <Card>
+            <h3>Doctors List</h3>
             {doctors.map((doctor) => (
-              <ListItem key={doctor.id}>
-                <strong>Name:</strong> {doctor.name}<br />
-                <strong>Email:</strong> {doctor.email}<br />
-                <strong>Wallet:</strong> {doctor.wallet}
-              </ListItem>
+              <motion.div
+                key={doctor.id}
+                whileHover={{ scale: 1.02 }}
+                style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}
+              >
+                <p><strong>Name:</strong> {doctor.name}</p>
+                <p><strong>Email:</strong> {doctor.email}</p>
+                <p><strong>Wallet:</strong> {doctor.wallet}</p>
+              </motion.div>
             ))}
-          </List>
-        </Section>
+          </Card>
 
-        {/* Right Section: Receptionists */}
-        <Section>
-          <Header>Receptionists</Header>
-          <List>
+          <Card>
+            <h3>Receptionists List</h3>
             {receptionists.map((receptionist) => (
-              <ListItem key={receptionist.id}>
-                <strong>Name:</strong> {receptionist.name}<br />
-                <strong>Email:</strong> {receptionist.email}<br />
-                <strong>Wallet:</strong> {receptionist.wallet}
-              </ListItem>
+              <motion.div
+                key={receptionist.id}
+                whileHover={{ scale: 1.02 }}
+                style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}
+              >
+                <p><strong>Name:</strong> {receptionist.name}</p>
+                <p><strong>Email:</strong> {receptionist.email}</p>
+                <p><strong>Wallet:</strong> {receptionist.wallet}</p>
+              </motion.div>
             ))}
-          </List>
-        </Section>
-      </SectionContainer>
+          </Card>
+        </DashboardGrid>
+      </ContentWrapper>
     </Container>
   );
 };

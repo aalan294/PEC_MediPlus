@@ -62,30 +62,32 @@ const Container = styled.div`
     align-items: center;
     justify-content: center;
     height: 100vh;
-    background-color: #f0f8ff;
+    background-color: #121212;
 `;
 
 const Heading = styled.h1`
-    color: #1e90ff;
+    background: linear-gradient(45deg, #4A90E2, #63B3ED);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     margin-bottom: 20px;
 `;
 
 const Button = styled.button`
-    background-color: #1e90ff;
+    background: linear-gradient(45deg, #4A90E2, #63B3ED);
     color: #fff;
     padding: 10px 20px;
     font-size: 18px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: transform 0.3s ease;
 
     &:hover {
-        background-color: #4682b4;
+        transform: translateY(-2px);
     }
 
     &:disabled {
-        background-color: #87cefa;
+        opacity: 0.7;
         cursor: not-allowed;
     }
 `;

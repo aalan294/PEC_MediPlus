@@ -1,85 +1,112 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { pinata } from '../../config';
 import api from '../../API/api';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
 
-// Styled Components for blue and white theme
-const FormContainer = styled.div`
+const Container = styled.div`
+  min-height: 100vh;
+  background-color: #121212;
+  position: relative;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #f0f4f8;
+  padding: 40px;
 `;
 
-const FormWrapper = styled.form`
-  background-color: white;
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+`;
+
+const Form = styled(motion.form)`
+  background: rgba(26, 26, 26, 0.9);
   padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
   max-width: 800px;
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  z-index: 1;
 `;
 
-const Title = styled.h2`
-  color: #007bff;
+const Title = styled(motion.h2)`
   text-align: center;
-  margin-bottom: 20px;
-  grid-column: span 3;
+  margin-bottom: 40px;
+  font-size: 2.5rem;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
-const InputGroup = styled.div`
-  margin-bottom: 15px;
+const InputGroup = styled(motion.div)`
+  margin-bottom: 25px;
 `;
 
 const Label = styled.label`
   display: block;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 5px;
+  color: #4A90E2;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 `;
 
-const Input = styled.input`
+const Input = styled(motion.input)`
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  font-size: 16px;
-  color: #333;
+  padding: 12px;
+  border: 2px solid rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+
   &:focus {
-    border-color: #007bff;
     outline: none;
+    border-color: #4A90E2;
+    box-shadow: 0 0 10px rgba(74, 144, 226, 0.2);
+  }
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.3);
   }
 `;
 
-const Button = styled.button`
-  grid-column: span 3;
-  padding: 10px;
-  background-color: #007bff;
+const Button = styled(motion.button)`
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
   color: white;
-  font-size: 16px;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
+  font-size: 1.1rem;
   cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+
   &:hover {
-    background-color: #0056b3;
+    background: linear-gradient(45deg, #63B3ED, #4A90E2);
   }
 `;
 
-const ErrorMessage = styled.p`
-  grid-column: span 3;
-  color: red;
+const ErrorMessage = styled(motion.p)`
+  color: #ff4444;
   text-align: center;
+  margin: 10px 0;
 `;
 
-const SuccessMessage = styled.p`
-  grid-column: span 3;
-  color: green;
+const SuccessMessage = styled(motion.p)`
+  color: #00C851;
   text-align: center;
+  margin: 10px 0;
 `;
 
 const PharmacyRequest = () => {
@@ -95,6 +122,39 @@ const PharmacyRequest = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
+
+    const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x4A90E2,
+      wireframe: true
+    });
+    const torus = new THREE.Mesh(geometry, material);
+    scene.add(torus);
+
+    camera.position.z = 30;
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      torus.rotation.x += 0.01;
+      torus.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    return () => {
+      renderer.dispose();
+      canvasRef.current?.removeChild(renderer.domElement);
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -117,7 +177,6 @@ const PharmacyRequest = () => {
 
       setPharmacyData({ ...pharmacyData, verification: cid });
       setSuccess('File uploaded successfully!');
-      console.log('CID:', cid);
     } catch (error) {
       setError('Error uploading to IPFS');
       console.error('Error uploading to IPFS:', error);
@@ -130,7 +189,6 @@ const PharmacyRequest = () => {
     setSuccess('');
 
     try {
-      // Request pharmacy registration
       const response = await api.post('/pharm/reg-pharm', pharmacyData);
 
       if (response.data.status) {
@@ -155,14 +213,35 @@ const PharmacyRequest = () => {
   };
 
   return (
-    <FormContainer>
-      <FormWrapper onSubmit={handleSubmit}>
-        <Title>Register Pharmacy</Title>
+    <Container>
+      <BgCanvas ref={canvasRef} />
+      <Form
+        onSubmit={handleSubmit}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Title
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          Register Pharmacy
+        </Title>
 
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-        {success && <SuccessMessage>{success}</SuccessMessage>}
+        {error && <ErrorMessage
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >{error}</ErrorMessage>}
+        {success && <SuccessMessage
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >{success}</SuccessMessage>}
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Pharmacy Name</Label>
           <Input
             type="text"
@@ -174,7 +253,10 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Owner Name</Label>
           <Input
             type="text"
@@ -186,7 +268,10 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Email</Label>
           <Input
             type="email"
@@ -198,7 +283,10 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Phone</Label>
           <Input
             type="tel"
@@ -210,7 +298,10 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Address</Label>
           <Input
             type="text"
@@ -222,7 +313,10 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <Label>Wallet Address</Label>
           <Input
             type="text"
@@ -234,17 +328,31 @@ const PharmacyRequest = () => {
           />
         </InputGroup>
 
-        <InputGroup>
-          <Label>Verification Document (License, Registration Certificate)</Label>
+        <InputGroup
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <Label>Verification Document</Label>
           <Input type="file" onChange={handleFileChange} required />
-          <Button type="button" onClick={handleFileUpload}>
+          <Button 
+            type="button" 
+            onClick={handleFileUpload}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             Upload to IPFS
           </Button>
         </InputGroup>
 
-        <Button type="submit">Submit Request</Button>
-      </FormWrapper>
-    </FormContainer>
+        <Button 
+          type="submit"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Submit Request
+        </Button>
+      </Form>
+    </Container>
   );
 };
 

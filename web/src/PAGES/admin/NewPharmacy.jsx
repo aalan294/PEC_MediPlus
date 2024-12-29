@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../API/api';
 import styled from 'styled-components';
@@ -7,55 +7,101 @@ import { pinata } from '../../config';
 import { abi } from '../../abi';
 import AdminNav from './AdminNav';
 import { contractAddress } from '../../contractAddress';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
 
-const NewPharmacyContainer = styled.div`
-  background-color: #f0f8ff;
-  color: #003366;
-  margin: auto;
-  h2{
-    display: flex;
-    justify-content: center;
-  }
+const Container = styled.div`
+  min-height: 100vh;
+  background-color: #121212;
+  position: relative;
+  overflow: hidden;
+  padding: 2rem;
 `;
 
-const PharmacyList = styled.ul`
- display: flex;
-flex-wrap: wrap;
-flex-direction: row;
-  list-style-type: none;
-  padding: 10px;
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100%;
+  z-index: 0;
 `;
 
-const PharmacyItem = styled.li`
-   padding: 20px;
-  margin: 3rem;
-  width: 400px;
-  border: 1px solid #003366;
-  border-radius: 5px;
-  background-color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+const ContentWrapper = styled(motion.div)`
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 4rem;
 `;
 
-const VerifyButton = styled.button`
-  background-color: #003366;
-  color: white;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+const Title = styled(motion.h2)`
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const PharmacyGrid = styled(motion.div)`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  margin-top: 2rem;
+`;
+
+const PharmacyCard = styled(motion.div)`
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  transition: transform 0.3s ease;
+  color: #fff;
 
   &:hover {
-    background-color: #002244;
+    transform: translateY(-5px);
   }
 `;
 
-const DocumentLink = styled.a`
-  color: #003366;
-  text-decoration: none;
+const Label = styled.span`
+  color: #4A90E2;
+  font-weight: 600;
+  margin-right: 0.5rem;
+`;
+
+const Value = styled.span`
+  color: #fff;
+`;
+
+const VerifyButton = styled(motion.button)`
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 1rem;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+const DocumentLink = styled(motion.a)`
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  color: #4A90E2;
+  text-decoration: none;
+  font-weight: 500;
 
   &:hover {
     text-decoration: underline;
@@ -68,15 +114,41 @@ const NewPharmacy = () => {
   const navigate = useNavigate();
   const web3 = new Web3(window.ethereum);
   const contract = new web3.eth.Contract(abi, contractAddress);
+  const containerRef = useRef(null);
 
-  // Fetch pharmacies from the API
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    containerRef.current.appendChild(renderer.domElement);
+
+    const particles = new THREE.Points(
+      new THREE.BufferGeometry(),
+      new THREE.PointsMaterial({ color: '#4A90E2', size: 0.05 })
+    );
+    scene.add(particles);
+    camera.position.z = 2;
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      particles.rotation.x += 0.001;
+      particles.rotation.y += 0.001;
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      containerRef.current?.removeChild(renderer.domElement);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchPharmacies = async () => {
       try {
         const response = await api.get('/admin/get-pharm-req');
         setPharmacies(response.data.pharmacies);
 
-        // Pre-fetch signed URLs for each pharmacy's verificationHash
         response.data.pharmacies.forEach(async (pharmacy) => {
           if (pharmacy.verification) {
             const url = await getSignedUrl(pharmacy.verification);
@@ -94,16 +166,10 @@ const NewPharmacy = () => {
     fetchPharmacies();
   }, []);
 
-  // Function to verify a pharmacy
   const handleVerify = async (pharmacy) => {
     try {
-      // First upload the pharmacy data to the blockchain
       await uploadToBlockchain(pharmacy);
-
-      // Upon successful blockchain upload, update the backend
       await api.patch(`/admin/verify-pharm/${pharmacy._id}`);
-
-      // Redirect to the dashboard
       navigate('/admin/dashboard');
     } catch (error) {
       alert(error.message);
@@ -111,7 +177,6 @@ const NewPharmacy = () => {
     }
   };
 
-  // Function to upload pharmacy data to the blockchain
   const uploadToBlockchain = async (pharmacy) => {
     try {
       const accounts = await web3.eth.getAccounts();
@@ -121,22 +186,20 @@ const NewPharmacy = () => {
           pharmacy._id,
           pharmacy.name,
           pharmacy.verification,
-          0 // Role is Pharmacy (enum starts from 0)
+          0
         )
         .send({ from: accounts[0] });
-
       console.log('Pharmacy data uploaded to blockchain successfully');
     } catch (error) {
       throw new Error('Error uploading pharmacy data to blockchain: ' + error.message);
     }
   };
 
-  // Function to get signed URL for verification document
   const getSignedUrl = async (cid) => {
     try {
       const signedUrl = await pinata.gateways.createSignedURL({
         cid: cid,
-        expires: 60, // URL expiration time in seconds
+        expires: 60,
       });
       return signedUrl;
     } catch (err) {
@@ -146,33 +209,60 @@ const NewPharmacy = () => {
   };
 
   return (
-    <NewPharmacyContainer>
-      <AdminNav/>
-      <h2>Pharmacy List</h2>
-      <PharmacyList>
-        {pharmacies.map((pharmacy) => (
-          <PharmacyItem key={pharmacy._id}>
-            <strong>Owner:</strong> {pharmacy.owner}
-            <strong>Email:</strong> {pharmacy.email}
-            <strong>Address:</strong> {pharmacy.address}
-            <strong>Wallet:</strong> {pharmacy.wallet}
-            <strong>Name:</strong> {pharmacy.name}
-            <strong>Phone:</strong> {pharmacy.phone}
-            <strong>Verification Status:</strong> {pharmacy.isVerified ? 'Verified' : 'Not Verified'}
-            <VerifyButton onClick={() => handleVerify(pharmacy)}>Verify</VerifyButton>
-            {signedUrls[pharmacy._id] && (
-              <DocumentLink
-                href={signedUrls[pharmacy._id]}
-                target="_blank"
-                rel="noopener noreferrer"
+    <Container>
+      <BgCanvas ref={containerRef} />
+      <ContentWrapper
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <AdminNav />
+        <Title
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Pharmacy Verification Requests
+        </Title>
+        <PharmacyGrid>
+          {pharmacies.map((pharmacy) => (
+            <PharmacyCard
+              key={pharmacy._id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div><Label>Owner:</Label><Value>{pharmacy.owner}</Value></div>
+              <div><Label>Email:</Label><Value>{pharmacy.email}</Value></div>
+              <div><Label>Address:</Label><Value>{pharmacy.address}</Value></div>
+              <div><Label>Wallet:</Label><Value>{pharmacy.wallet}</Value></div>
+              <div><Label>Name:</Label><Value>{pharmacy.name}</Value></div>
+              <div><Label>Phone:</Label><Value>{pharmacy.phone}</Value></div>
+              <div><Label>Status:</Label><Value>{pharmacy.isVerified ? 'Verified' : 'Pending'}</Value></div>
+              
+              <VerifyButton
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleVerify(pharmacy)}
               >
-                View Verification Document
-              </DocumentLink>
-            )}
-          </PharmacyItem>
-        ))}
-      </PharmacyList>
-    </NewPharmacyContainer>
+                Verify Pharmacy
+              </VerifyButton>
+              
+              {signedUrls[pharmacy._id] && (
+                <DocumentLink
+                  href={signedUrls[pharmacy._id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  View Verification Document
+                </DocumentLink>
+              )}
+            </PharmacyCard>
+          ))}
+        </PharmacyGrid>
+      </ContentWrapper>
+    </Container>
   );
 };
 
