@@ -1,65 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import api from '../../API/api';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
 
-// Styled Components for blue and white theme
-const FormContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f0f4f8;
-`;
-
-const FormWrapper = styled.form`
-  background-color: white;
-  padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-width: 400px;
-  width: 100%;
+const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #121212;
+  position: relative;
+  overflow: hidden;
+`;
+
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+`;
+
+const ContentWrapper = styled(motion.div)`
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
 `;
 
 const Title = styled.h2`
-  color: #007bff;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
   text-align: center;
-  margin-bottom: 20px;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
-const Input = styled.input`
+const Form = styled.form`
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 2rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+`;
+
+const Input = styled(motion.input)`
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  font-size: 16px;
-  color: #333;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+
   &:focus {
-    border-color: #007bff;
     outline: none;
+    border-color: #4A90E2;
+    box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
   }
 `;
 
-const Button = styled.button`
-  padding: 10px;
-  background-color: #007bff;
-  color: white;
-  font-size: 16px;
+const Button = styled(motion.button)`
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
   cursor: pointer;
+  transition: all 0.3s ease;
+
   &:hover {
-    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
   }
 `;
 
-const ErrorMessage = styled.p`
-  color: red;
+const ErrorMessage = styled(motion.p)`
+  color: #ff4d4d;
   text-align: center;
+  margin-bottom: 1rem;
 `;
 
 const HospitalLogin = () => {
@@ -69,6 +99,60 @@ const HospitalLogin = () => {
   });
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    // Three.js background setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
+
+    // Create particles
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    
+    for (let i = 0; i < 5000; i++) {
+      vertices.push(
+        THREE.MathUtils.randFloatSpread(2000),
+        THREE.MathUtils.randFloatSpread(2000),
+        THREE.MathUtils.randFloatSpread(2000)
+      );
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const particles = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({ color: 0x4A90E2, size: 2 })
+    );
+    
+    scene.add(particles);
+    camera.position.z = 500;
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      particles.rotation.x += 0.0001;
+      particles.rotation.y += 0.0001;
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      canvasRef.current?.removeChild(renderer.domElement);
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -80,14 +164,11 @@ const HospitalLogin = () => {
     setError('');
 
     try {
-      // Make API call for login
+      console.log(loginData);
       const response = await api.post('/hospital/login', loginData);
 
       if (response.data.status) {
-        // Store the user data in local storage
         localStorage.setItem('user', JSON.stringify(response.data.user));
-
-        // Navigate based on verification status
         if (response.data.user.isVerified) {
           navigate('/hospital/dashboard');
         } else {
@@ -103,31 +184,52 @@ const HospitalLogin = () => {
   };
 
   return (
-    <FormContainer>
-      <FormWrapper onSubmit={handleSubmit}>
+    <Container>
+      <BgCanvas ref={canvasRef} />
+      <ContentWrapper
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <Title>Hospital Login</Title>
-
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-
-        <Input
-          type="email"
-          name="email"
-          value={loginData.email}
-          onChange={handleInputChange}
-          placeholder="Enter email"
-          required
-        />
-        <Input
-          type="password"
-          name="password"
-          value={loginData.password}
-          onChange={handleInputChange}
-          placeholder="Enter password"
-          required
-        />
-        <Button type="submit">Login</Button>
-      </FormWrapper>
-    </FormContainer>
+        <Form onSubmit={handleSubmit}>
+          {error && (
+            <ErrorMessage
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {error}
+            </ErrorMessage>
+          )}
+          <Input
+            type="email"
+            name="email"
+            value={loginData.email}
+            onChange={handleInputChange}
+            placeholder="Enter email"
+            required
+            whileFocus={{ scale: 1.02 }}
+          />
+          <Input
+            type="password"
+            name="password"
+            value={loginData.password}
+            onChange={handleInputChange}
+            placeholder="Enter password"
+            required
+            whileFocus={{ scale: 1.02 }}
+          />
+          <Button
+            type="submit"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Login
+          </Button>
+        </Form>
+      </ContentWrapper>
+    </Container>
   );
 };
 

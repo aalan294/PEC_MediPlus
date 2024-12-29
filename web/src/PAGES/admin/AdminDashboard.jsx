@@ -3,12 +3,12 @@ import api from '../../API/api';
 import styled from 'styled-components';
 import AdminNav from './AdminNav';
 
-// Styled Components with Blue and White Theme
+// Styled Components with Dark Theme
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f0f4f8;
+  background-color: #121212;
   position: relative;
 `;
 
@@ -25,17 +25,17 @@ const SectionContainer = styled.div`
 const Section = styled.div`
   width: 30%;
   padding: 20px;
-  background-color: #ffffff;
-  border: 1px solid #007bff;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: rgba(36, 36, 36, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   transition: 0.5s;
- 
 `;
 
 const Header = styled.h2`
   text-align: center;
-  color: #007bff;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
 const List = styled.ul`
@@ -47,22 +47,21 @@ const List = styled.ul`
 const ListItem = styled.li`
   margin: 10px 0;
   padding: 10px;
-  background-color: #f9f9f9;
-  border: 1px solid #007bff;
-  border-radius: 5px;
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid #4A90E2;
+  border-radius: 8px;
   cursor: pointer;
   transition: 0.5s;
-  &:hover{
+  color: #ffffff;
+  &:hover {
     transform: scale(1.05);
+    background: rgba(74, 144, 226, 0.1);
   }
 `;
-
-
 
 const AdminDashBoard = () => {
   const [hospital, setHospital] = useState([]);
   const [pharmacies, setPharmacies] = useState([]);
- 
 
   // Fetch all doctors, pharmacies, and receptionists
   useEffect(() => {
@@ -80,14 +79,10 @@ const AdminDashBoard = () => {
 
     fetchData();
   }, []);
-  
- 
 
   return (
     <Container>
-      
-
-     <AdminNav/>
+      <AdminNav/>
 
       {/* Section Container */}
       <SectionContainer>

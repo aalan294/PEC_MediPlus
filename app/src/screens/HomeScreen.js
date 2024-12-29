@@ -256,13 +256,7 @@ const HomeScreen = ({ navigation }) => {
           <Icon name="calendar-today" size={24} color="#666" />
           <Text style={styles.navText}>Perception</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Messages')}
-        >
-          <Icon name="chat" size={24} color="#666" />
-          <Text style={styles.navText}>Messages</Text>
-        </TouchableOpacity>
+       
         <TouchableOpacity 
           style={styles.navItem}
           onPress={() => navigation.navigate('Profile')}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,17 +8,35 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileScreen = ({ navigation }) => {
-  const profileData = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 234 567 8900',
-    bloodGroup: 'A+',
-    age: '32',
-    weight: '75 kg',
-    height: '175 cm',
-  };
+  const [profileData, setProfileData] = useState(null);
+
+  // Fetch user details from AsyncStorage when the component mounts
+  useEffect(() => {
+    const getUserDetails = async () => {
+      try {
+        const storedUserDetails = await AsyncStorage.getItem('userDetails');
+        if (storedUserDetails) {
+          setProfileData(JSON.parse(storedUserDetails));
+        }
+      } catch (error) {
+        console.error('Error retrieving user details from AsyncStorage:', error);
+      }
+    };
+
+    getUserDetails();
+  }, []);
+
+  // If profile data is not available yet, show a loading message
+  if (!profileData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Loading user details...</Text>
+      </View>
+    );
+  }
 
   const menuItems = [
     { icon: 'person', title: 'Personal Information' },
@@ -33,7 +51,7 @@ const ProfileScreen = ({ navigation }) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={require('../../assets/icon.png')}
+          source={require('../../assets/icon.png')} // Replace with your default image path
           style={styles.profileImage}
         />
         <Text style={styles.name}>{profileData.name}</Text>
@@ -43,15 +61,15 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.infoContainer}>
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Blood Group</Text>
-          <Text style={styles.infoValue}>{profileData.bloodGroup}</Text>
+          <Text style={styles.infoValue}>{profileData.blood}</Text>
         </View>
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Age</Text>
           <Text style={styles.infoValue}>{profileData.age}</Text>
         </View>
         <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Weight</Text>
-          <Text style={styles.infoValue}>{profileData.weight}</Text>
+          <Text style={styles.infoLabel}>Gender</Text>
+          <Text style={styles.infoValue}>{profileData.gender}</Text>
         </View>
       </View>
 
@@ -67,7 +85,10 @@ const ProfileScreen = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => navigation.navigate('Login')}
+        onPress={async () => {
+          await AsyncStorage.clear(); // Clear all data in AsyncStorage
+          navigation.navigate('Login'); // Navigate to the login screen
+        }}
       >
         <Icon name="logout" size={24} color="#fff" />
         <Text style={styles.logoutText}>Logout</Text>
@@ -151,6 +172,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 10,
+  },
+  loadingText: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
 

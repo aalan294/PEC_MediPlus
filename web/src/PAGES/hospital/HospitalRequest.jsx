@@ -1,86 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import Web3 from 'web3';
 import { pinata } from '../../config';
 import api from '../../API/api';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
 
-// Styled Components for blue and white theme
-const FormContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f0f4f8;
+const Container = styled.div`
+  min-height: 100vh;
+  background-color: #121212;
+  position: relative;
+  overflow: hidden;
+  padding: 2rem;
 `;
 
-const FormWrapper = styled.form`
-  background-color: white;
-  padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100%;
+  z-index: 0;
+`;
+
+const ContentWrapper = styled(motion.div)`
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 2rem;
+`;
+
+const Title = styled(motion.h2)`
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const FormWrapper = styled(motion.form)`
+  background: rgba(26, 26, 26, 0.9);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 1.5rem;
 `;
 
-const Title = styled.h2`
-  color: #007bff;
-  text-align: center;
-  margin-bottom: 20px;
-  grid-column: span 3;
-`;
-
-const InputGroup = styled.div`
-  margin-bottom: 15px;
+const InputGroup = styled(motion.div)`
+  display: flex;
+  flex-direction: column;
+  margin-right: 30px;
 `;
 
 const Label = styled.label`
-  display: block;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 5px;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  font-size: 16px;
-  color: #333;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+
   &:focus {
-    border-color: #007bff;
     outline: none;
+    border-color: #4A90E2;
+    box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
   }
 `;
 
-const Button = styled.button`
+const Button = styled(motion.button)`
   grid-column: span 3;
-  padding: 10px;
-  background-color: #007bff;
-  color: white;
-  font-size: 16px;
+  padding: 1rem;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1.1rem;
   cursor: pointer;
+  transition: all 0.3s ease;
+
   &:hover {
-    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
   }
 `;
 
-const ErrorMessage = styled.p`
+const Message = styled(motion.p)`
   grid-column: span 3;
-  color: red;
   text-align: center;
-`;
-
-const SuccessMessage = styled.p`
-  grid-column: span 3;
-  color: green;
-  text-align: center;
+  padding: 1rem;
+  border-radius: 8px;
+  color: #fff;
+  background: ${props => props.type === 'error' ? 'rgba(255, 0, 0, 0.2)' : 'rgba(0, 255, 0, 0.2)'};
 `;
 
 const HospitalRequest = () => {
@@ -96,6 +121,39 @@ const HospitalRequest = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
+
+    const geometry = new THREE.IcosahedronGeometry(1, 1);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x4A90E2,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.3
+    });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    camera.position.z = 5;
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      sphere.rotation.x += 0.001;
+      sphere.rotation.y += 0.001;
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      canvasRef.current?.removeChild(renderer.domElement);
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -118,7 +176,6 @@ const HospitalRequest = () => {
 
       setHospitalData({ ...hospitalData, verification: cid });
       setSuccess('File uploaded successfully!');
-      console.log('CID:', cid);
     } catch (error) {
       setError('Error uploading to IPFS');
       console.error('Error uploading to IPFS:', error);
@@ -131,7 +188,6 @@ const HospitalRequest = () => {
     setSuccess('');
 
     try {
-      // Request hospital registration
       const response = await api.post('/hospital/req-hospital', hospitalData);
 
       if (response.data.status) {
@@ -156,96 +212,115 @@ const HospitalRequest = () => {
   };
 
   return (
-    <FormContainer>
-      <FormWrapper onSubmit={handleSubmit}>
-        <Title>Request Hospital Registration</Title>
+    <Container>
+      <BgCanvas ref={canvasRef} />
+      <ContentWrapper
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Title
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          Request Hospital Registration
+        </Title>
 
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-        {success && <SuccessMessage>{success}</SuccessMessage>}
+        <FormWrapper onSubmit={handleSubmit}>
+          {error && <Message type="error">{error}</Message>}
+          {success && <Message type="success">{success}</Message>}
 
-        <InputGroup>
-          <Label>Hospital Name</Label>
-          <Input
-            type="text"
-            name="name"
-            value={hospitalData.name}
-            onChange={handleInputChange}
-            placeholder="Enter hospital name"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Hospital Name</Label>
+            <Input
+              type="text"
+              name="name"
+              value={hospitalData.name}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Owner Name</Label>
-          <Input
-            type="text"
-            name="owner"
-            value={hospitalData.owner}
-            onChange={handleInputChange}
-            placeholder="Enter owner's name"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Owner Name</Label>
+            <Input
+              type="text"
+              name="owner"
+              value={hospitalData.owner}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Email</Label>
-          <Input
-            type="email"
-            name="email"
-            value={hospitalData.email}
-            onChange={handleInputChange}
-            placeholder="Enter email address"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              name="email"
+              value={hospitalData.email}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Phone</Label>
-          <Input
-            type="tel"
-            name="phone"
-            value={hospitalData.phone}
-            onChange={handleInputChange}
-            placeholder="Enter phone number"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Phone</Label>
+            <Input
+              type="tel"
+              name="phone"
+              value={hospitalData.phone}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Address</Label>
-          <Input
-            type="text"
-            name="address"
-            value={hospitalData.address}
-            onChange={handleInputChange}
-            placeholder="Enter hospital address"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Address</Label>
+            <Input
+              type="text"
+              name="address"
+              value={hospitalData.address}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Wallet Address</Label>
-          <Input
-            type="text"
-            name="wallet"
-            value={hospitalData.wallet}
-            onChange={handleInputChange}
-            placeholder="Enter wallet address"
-            required
-          />
-        </InputGroup>
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Wallet Address</Label>
+            <Input
+              type="text"
+              name="wallet"
+              value={hospitalData.wallet}
+              onChange={handleInputChange}
+              required
+            />
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Verification Document (Registration Certificate, License)</Label>
-          <Input type="file" onChange={handleFileChange} required />
-          <Button type="button" onClick={handleFileUpload}>
-            Upload to IPFS
+          <InputGroup whileHover={{ scale: 1.02 }}>
+            <Label>Verification Document</Label>
+            <Input type="file" onChange={handleFileChange} required />
+
+          </InputGroup>
+          <Button 
+              type="button" 
+              onClick={handleFileUpload}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Upload to IPFS
+            </Button>
+
+          <Button 
+            type="submit"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Submit Request
           </Button>
-        </InputGroup>
-
-        <Button type="submit">Submit Request</Button>
-      </FormWrapper>
-    </FormContainer>
+        </FormWrapper>
+      </ContentWrapper>
+    </Container>
   );
 };
 

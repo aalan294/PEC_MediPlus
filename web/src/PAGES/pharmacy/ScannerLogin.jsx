@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import Web3 from 'web3';
 import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import * as THREE from 'three';
 import { abi } from '../../abi';
 import { pinata } from '../../config';
 import { contractAddress } from '../../contractAddress';
 
-
 const ScannerLogin = () => {
-  const { id } = useParams(); // Get the prescription ID from the URL
+  const { id } = useParams();
   const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
   const [account, setAccount] = useState(null);
@@ -16,6 +17,62 @@ const ScannerLogin = () => {
   const [loading, setLoading] = useState(true);
   const [isFulfilled, setIsFulfilled] = useState(false);
   const [url, setUrl] = useState('');
+  const canvasRef = useRef(null);
+
+  // Three.js background setup
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvasRef.current.appendChild(renderer.domElement);
+
+    const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
+    const material = new THREE.MeshStandardMaterial({ 
+      color: 0x4A90E2,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.3
+    });
+    const torus = new THREE.Mesh(geometry, material);
+
+    const pointLight = new THREE.PointLight(0xffffff);
+    pointLight.position.set(5, 5, 5);
+    const ambientLight = new THREE.AmbientLight(0xffffff);
+    
+    scene.add(torus, pointLight, ambientLight);
+    camera.position.z = 30;
+
+    // Handle window resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      torus.rotation.x += 0.01;
+      torus.rotation.y += 0.005;
+      torus.rotation.z += 0.01;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (canvasRef.current?.contains(renderer.domElement)) {
+        canvasRef.current.removeChild(renderer.domElement);
+      }
+      scene.remove(torus);
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+    };
+  }, []);
 
   // Initialize Web3 and contract instance
   useEffect(() => {
@@ -47,15 +104,27 @@ const ScannerLogin = () => {
       if (contract && id) {
         try {
           const prescriptionData = await contract.methods.getPrescription(id).call();
+          console.log('Prescription Data:', prescriptionData);
+          
+          // Ensure medicines is always an array
+          const medicines = Array.isArray(prescriptionData[5]) 
+            ? prescriptionData[5] 
+            : prescriptionData[5] ? [prescriptionData[5]] : [];
+            
+          // Ensure allergies is always an array
+          const allergies = Array.isArray(prescriptionData[7])
+            ? prescriptionData[7]
+            : prescriptionData[7] ? [prescriptionData[7]] : [];
+
           setPrescription({
             prescriptionId: prescriptionData[0].toString(),
             userId: prescriptionData[1],
             timestamp: new Date(parseInt(prescriptionData[2]) * 1000),
             description: prescriptionData[3],
             dept: prescriptionData[4].toString(),
-            medicines: prescriptionData[5],
+            medicines: medicines,
             documents: prescriptionData[6],
-            allergies: prescriptionData[7],
+            allergies: allergies,
             isFulfilled: prescriptionData[8],
           });
           setIsFulfilled(prescriptionData[8]);
@@ -76,7 +145,6 @@ const ScannerLogin = () => {
     fetchPrescription();
   }, [contract, id]);
 
-  // Function to fulfill the prescription
   const fulfillPrescription = async () => {
     if (contract && account && id) {
       try {
@@ -100,63 +168,92 @@ const ScannerLogin = () => {
 
   return (
     <Container>
-      <Card>
-        <Title>Prescription Details</Title>
+      <BgCanvas ref={canvasRef} />
+      <InfoCard
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Title
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Prescription Details
+        </Title>
 
-        <Grid>
-          <div>
-            <Label>Prescription ID:</Label> {prescription.prescriptionId}
-          </div>
-          <div>
-            <Label>User ID:</Label> {prescription.userId}
-          </div>
-          <div>
-            <Label>Timestamp:</Label> {prescription.timestamp.toString()}
-          </div>
-          <div>
-            <Label>Department:</Label> {prescription.dept}
-          </div>
-        </Grid>
+        <InfoGrid>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Prescription ID</Label>
+            <Value>{prescription.prescriptionId}</Value>
+          </InfoRow>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>User ID</Label>
+            <Value>{prescription.userId}</Value>
+          </InfoRow>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Timestamp</Label>
+            <Value>{prescription.timestamp.toString()}</Value>
+          </InfoRow>
+          <InfoRow whileHover={{ scale: 1.02 }}>
+            <Label>Department</Label>
+            <Value>{prescription.dept}</Value>
+          </InfoRow>
+        </InfoGrid>
 
-        <Section>
-          <Label>Description:</Label>
-          <Text>{prescription.description}</Text>
-        </Section>
+        <DetailSection>
+          <Label>Description</Label>
+          <DetailText>{prescription.description}</DetailText>
+        </DetailSection>
 
-        <Section>
-          <Label>Medicines:</Label>
-          <Text>{prescription.medicines.join(', ')}</Text>
-        </Section>
+        <DetailSection>
+          <Label>Medicines</Label>
+          <DetailText>
+            {Array.isArray(prescription.medicines) && prescription.medicines.length > 0
+              ? prescription.medicines.join(', ')
+              : 'No medicines prescribed'}
+          </DetailText>
+        </DetailSection>
 
-        <Section>
-          <Label>Allergies:</Label>
-          <Text>{prescription.allergies.length > 0 ? prescription.allergies.join(', ') : 'None'}</Text>
-        </Section>
+        <DetailSection>
+          <Label>Allergies</Label>
+          <DetailText>
+            {Array.isArray(prescription.allergies) && prescription.allergies.length > 0
+              ? prescription.allergies.join(', ')
+              : 'None'}
+          </DetailText>
+        </DetailSection>
 
-        <Section>
-          <Label>Documents:</Label>
-          <DocumentList>
+        <DetailSection>
+          <Label>Documents</Label>
+          <DocumentGrid>
             {prescription.documents.map((doc, index) => (
-              <li key={index}>
+              <DocumentItem key={index}>
                 <DocumentLink href={url} target="_blank" rel="noopener noreferrer">
                   Document {index + 1}
                 </DocumentLink>
-              </li>
+              </DocumentItem>
             ))}
-          </DocumentList>
-        </Section>
+          </DocumentGrid>
+        </DetailSection>
 
-        <Section>
-          <Label>Status:</Label>
-          <Text status={isFulfilled}>{isFulfilled ? 'Fulfilled' : 'Not Fulfilled'}</Text>
-        </Section>
+        <StatusSection>
+          <Label>Status</Label>
+          <StatusText fulfilled={!isFulfilled}>
+            {!isFulfilled ? 'Fulfilled' : 'Not Fulfilled'}
+          </StatusText>
+        </StatusSection>
 
-        {!isFulfilled && (
-          <ButtonWrapper>
-            <FulfillButton onClick={fulfillPrescription}>Update Prescription as Fulfilled</FulfillButton>
-          </ButtonWrapper>
+        {isFulfilled && (
+          <ActionButton
+            onClick={fulfillPrescription}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Update Prescription as Fulfilled
+          </ActionButton>
         )}
-      </Card>
+      </InfoCard>
     </Container>
   );
 };
@@ -166,82 +263,124 @@ export default ScannerLogin;
 // Styled Components
 const Container = styled.div`
   min-height: 100vh;
+  background-color: #121212;
+  position: relative;
+  overflow: hidden;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: linear-gradient(to bottom, #ebf8ff, #ffffff);
-  padding: 2rem;
+  align-items: center;
+  padding: 40px;
 `;
 
-const Card = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+const BgCanvas = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  max-width: 768px;
+  height: 100%;
+  z-index: 0;
 `;
 
-const Title = styled.h2`
-  font-size: 2rem;
-  font-weight: bold;
+const InfoCard = styled(motion.div)`
+  background: rgba(26, 26, 26, 0.9);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  max-width: 800px;
+  width: 100%;
+  z-index: 1;
+`;
+
+const Title = styled(motion.h2)`
   text-align: center;
-  color: #3182ce;
-  margin-bottom: 1.5rem;
+  margin-bottom: 40px;
+  font-size: 2.5rem;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
-const Grid = styled.div`
+const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 `;
 
-const Label = styled.strong`
+const InfoRow = styled(motion.div)`
+  padding: 20px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(74, 144, 226, 0.2);
+`;
+
+const Label = styled.span`
   display: block;
-  color: #4a5568;
+  color: #4A90E2;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 `;
 
-const Section = styled.div`
-  margin-bottom: 1.5rem;
+const Value = styled.span`
+  color: #fff;
+  font-size: 1.1rem;
 `;
 
-const Text = styled.p`
-  color: ${({ status }) => (status ? '#38a169' : '#e53e3e')};
-  margin-top: 0.5rem;
+const DetailSection = styled.div`
+  margin-bottom: 25px;
 `;
 
-const DocumentList = styled.ul`
-  list-style: disc;
-  margin-top: 0.5rem;
-  padding-left: 1.5rem;
+const DetailText = styled.p`
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1.6;
+`;
+
+const DocumentGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+`;
+
+const DocumentItem = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(74, 144, 226, 0.2);
 `;
 
 const DocumentLink = styled.a`
-  color: #3182ce;
-  text-decoration: underline;
+  color: #4A90E2;
+  text-decoration: none;
   &:hover {
-    text-decoration: none;
+    text-decoration: underline;
   }
 `;
 
-const ButtonWrapper = styled.div`
-  text-align: center;
-  margin-top: 2rem;
+const StatusSection = styled.div`
+  margin: 30px 0;
 `;
 
-const FulfillButton = styled.button`
-  background-color: #3182ce;
+const StatusText = styled.span`
+  color: ${props => props.fulfilled ? '#4CAF50' : '#f44336'};
+  font-size: 1.2rem;
+  font-weight: 500;
+`;
+
+const ActionButton = styled(motion.button)`
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(45deg, #4A90E2, #63B3ED);
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
   border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
   cursor: pointer;
-  font-size: 1rem;
-  &:hover {
-    background-color: #2b6cb0;
-  }
-  transition: background-color 0.3s;
 `;
 
 const LoadingMessage = styled.div`
@@ -250,8 +389,10 @@ const LoadingMessage = styled.div`
   justify-content: center;
   height: 100vh;
   font-size: 1.5rem;
+  color: #4A90E2;
+  background-color: #121212;
 `;
 
 const ErrorMessage = styled(LoadingMessage)`
-  color: red;
+  color: #f44336;
 `;

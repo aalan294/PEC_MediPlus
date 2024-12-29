@@ -55,9 +55,9 @@ const patientLogin = async (req, res) => {
         if (!isMatch) {
             throw new Error("Login failed")
         }
-
+console.log(patient);
         // If login is successful
-        return res.json({ message: "Login successful", user: patient, status: true });
+        return res.status(200).json({ message: "Login successful", user: patient, status: true });
     } catch (error) {
         console.error('Error caught in patient login:', error);
         return res.json({ message: "Error caught in patient login", status: false });
