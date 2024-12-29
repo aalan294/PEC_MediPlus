@@ -1,125 +1,192 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, Linking, Platform, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Button, ActivityIndicator } from 'react-native';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
+import Web3 from 'web3';
+import axios from 'axios';
+import { abi } from '../abi';  // Assuming ABI is already defined
+import { contractAddress } from '../contractAddress';  // Your contract address
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const projectId = 'f3c1be359046efb4c3f70c6d30d4f3fc';
+const AppointmentScreen = () => {
+  const { open, isConnected, provider } = useWalletConnectModal();
+  const [web3, setWeb3] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [patient, setPatient] = useState(null);
+  const [prescriptions, setPrescriptions] = useState({});
+  const [loading, setLoading] = useState(true);
 
-const providerMetadata = {
-  name: 'Your Project Name',
-  description: 'Description of your project',
-  url: 'https://your-project-website.com/',
-  icons: ['https://your-project-logo.com/logo.png'],
-  redirect: {
-    native: 'yourapp://', // Update this to your app's deep link scheme
-    universal: 'https://your-universal-link.com',
-  },
-};
-
-const AppointmentsScreen = () => {
-  const { open, isConnected, address, provider } = useWalletConnectModal();
-  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
+  // Connect Web3 to Ganache via WalletConnect or directly to Ganache using Web3 provider
+  useEffect(() => {
+    if (isConnected && provider) {
+      const web3Instance = new Web3(provider);
+      const contractInstance = new web3Instance.eth.Contract(abi, contractAddress);
+      setWeb3(web3Instance);
+      setContract(contractInstance);
+    } else {
+      const ganacheUrl = 'http://192.168.32.227:8545'; // Default Ganache URL
+      const web3Instance = new Web3(new Web3.providers.HttpProvider(ganacheUrl)); // Connect to Ganache
+      const contractInstance = new web3Instance.eth.Contract(abi, contractAddress);
+      setWeb3(web3Instance);
+      setContract(contractInstance);
+    }
+  }, [isConnected, provider]);
 
   useEffect(() => {
-    checkMetaMaskInstallation();
+    const fetchPatientDetails = async () => {
+      try {
+        const storedUserDetails = await AsyncStorage.getItem('userDetails');
+        if (!storedUserDetails) {
+          throw new Error('User details not found in storage.');
+        }
+
+        const userDetails = JSON.parse(storedUserDetails); // Parse the JSON string
+        const id = userDetails._id; // Access the _id field
+        console.log('Retrieved user ID:', id);
+
+        const response = await axios.get(`http://192.168.32.249:3500/doctor/get/${id}`);
+        setPatient(response.data.patient);
+      } catch (error) {
+        console.error('Error fetching patient details:', error);
+        Alert.alert('Error', 'Failed to fetch patient details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatientDetails();
   }, []);
 
-  const checkMetaMaskInstallation = async () => {
+  const fetchPrescriptionDetails = async (prescriptionId) => {
+    if (!contract || !prescriptionId || prescriptions[prescriptionId]) return;
+
     try {
-      if (Platform.OS === 'ios') {
-        const canOpen = await Linking.canOpenURL('metamask://');
-        setIsMetaMaskInstalled(canOpen);
-      } else if (Platform.OS === 'android') {
-        const canOpen = await Linking.canOpenURL('metamask://');
-        setIsMetaMaskInstalled(canOpen);
-      }
+      const result = await contract.methods.getPrescription(prescriptionId).call();
+      setPrescriptions((prev) => ({
+        ...prev,
+        [prescriptionId]: result,
+      }));
     } catch (error) {
-      console.error('Error checking MetaMask installation:', error);
-      setIsMetaMaskInstalled(false);
+      console.error('Error fetching prescription:', error);
+      Alert.alert('Error', 'Failed to fetch prescription details.');
     }
   };
 
-  const handleConnectWallet = async () => {
-    if (!isMetaMaskInstalled) {
-      const storeUrl = Platform.select({
-        ios: 'https://apps.apple.com/us/app/metamask/id1438144202',
-        android: 'https://play.google.com/store/apps/details?id=io.metamask',
-      });
-      Alert.alert(
-        'MetaMask Required',
-        'MetaMask is not installed. Please install it from the app store.',
-        [
-          {
-            text: 'Install MetaMask',
-            onPress: () => Linking.openURL(storeUrl),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-      return;
-    }
+  if (loading) {
+    return <ActivityIndicator size="large" color="#007bff" />;
+  }
 
-    try {
-      await open(); // Opens the WalletConnect modal
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-      Alert.alert('Connection Error', 'Failed to connect wallet. Please try again.');
-    }
-  };
-
-  const handleDisconnectWallet = async () => {
-    try {
-      if (provider) {
-        await provider.disconnect();
-        Alert.alert('Disconnected', 'Your wallet has been disconnected.');
-      }
-    } catch (error) {
-      console.error('Error disconnecting wallet:', error);
-    }
-  };
+  if (!patient) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>No patient data found.</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Appointments</Text>
-      {isConnected ? (
-        <View>
-          <Text style={styles.connectedText}>
-            Connected Wallet: {address.slice(0, 6)}...{address.slice(-4)}
-          </Text>
-          <Button title="Disconnect Wallet" onPress={handleDisconnectWallet} />
-        </View>
-      ) : (
-        <Button title="Connect Wallet" onPress={handleConnectWallet} />
-      )}
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.title}>Patient Details</Text>
+        <Text style={styles.label}>
+          Name: <Text style={styles.value}>{patient.name}</Text>
+        </Text>
+        <Text style={styles.label}>
+          Age: <Text style={styles.value}>{patient.age}</Text>
+        </Text>
+        <Text style={styles.label}>
+          Gender: <Text style={styles.value}>{patient.gender}</Text>
+        </Text>
+        <Text style={styles.label}>
+          Email: <Text style={styles.value}>{patient.email}</Text>
+        </Text>
+        <Text style={styles.label}>
+          Contact: <Text style={styles.value}>{patient.contactNumber}</Text>
+        </Text>
+      </View>
 
-      <WalletConnectModal
-        projectId={projectId}
-        providerMetadata={providerMetadata}
-        explorerRecommendedWalletIds={[
-          'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
-        ]}
-        explorerExcludedWalletIds={'ALL'}
-      />
-    </View>
+      <View style={styles.section}>
+        <Text style={styles.title}>Medical History</Text>
+        {patient.history && patient.history.length > 0 ? (
+          patient.history.map((record, index) => (
+            <View key={index} style={styles.historyItem}>
+              <Text style={styles.label}>
+                Prescription ID: <Text style={styles.value}>{record.prescriptionId}</Text>
+              </Text>
+              <Text style={styles.label}>
+                Date: <Text style={styles.value}>{record.date}</Text>
+              </Text>
+              <Text style={styles.label}>
+                Doctor: <Text style={styles.value}>{record.doctor}</Text>
+              </Text>
+            
+              {prescriptions[record.prescriptionId] && (
+                <View style={styles.prescriptionDetails}>
+                  <Text style={styles.label}>
+                    Medicines: <Text style={styles.value}>{prescriptions[record.prescriptionId].medicines.join(', ')}</Text>
+                  </Text>
+                  <Text style={styles.label}>
+                    Allergies: <Text style={styles.value}>{prescriptions[record.prescriptionId].allergies}</Text>
+                  </Text>
+                </View>
+              )}
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noHistoryText}>No medical history available.</Text>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#f0f8ff',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '600',
+  section: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  connectedText: {
-    fontSize: 16,
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#004085',
     marginBottom: 10,
-    color: 'green',
+  },
+  label: {
+    fontWeight: 'bold',
+    color: '#333',
+    marginVertical: 5,
+  },
+  value: {
+    fontWeight: 'normal',
+    color: '#555',
+  },
+  historyItem: {
+    marginVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    paddingBottom: 10,
+  },
+  prescriptionDetails: {
+    marginTop: 10,
+  },
+  noHistoryText: {
+    color: '#999',
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#ff0000',
+    textAlign: 'center',
   },
 });
 
-export default AppointmentsScreen;
+export default AppointmentScreen;

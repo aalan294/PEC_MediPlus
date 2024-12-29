@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ const LoginScreen = ({ navigation }) => {
     try {
       console.log('Attempting login with:', { email, password });
       const response = await axios.post(
-        'http://192.168.32.227:3500/patient/login', // Replace with your machine's local IP
+        'http://192.168.32.249:3500/patient/login', // Replace with your machine's local IP
         { email, password },
         {
           headers: {
@@ -36,11 +37,23 @@ const LoginScreen = ({ navigation }) => {
           timeout: 5000,
         }
       );
-      
+  
       console.log('Response from backend:', response.data);
   
-      if (response.status === 200) {
-        
+      if (response.status == 200) {
+        const user = response.data?.user || null;
+  
+        if (!user) {
+          throw new Error('Invalid login response from the server.');
+        }
+  
+        console.log('Saving user details to AsyncStorage...');
+        await AsyncStorage.setItem('userDetails', JSON.stringify(user));
+  
+        console.log('User details saved. Retrieving for verification...');
+        const storedUserDetails = await AsyncStorage.getItem('userDetails');
+        console.log('Retrieved user details:', JSON.parse(storedUserDetails));
+  
         navigation.navigate('Home');
       } else {
         Alert.alert('Error', response.data.message || 'Login failed.');
@@ -63,6 +76,7 @@ const LoginScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+  
   
 
   return (
@@ -92,6 +106,7 @@ const LoginScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
       </TouchableOpacity>
+      {/* Uncomment if you want to add a register navigation */}
       {/* <TouchableOpacity onPress={() => navigation.navigate('Register')}>
         <Text style={styles.linkText}>Don't have an account? Register</Text>
       </TouchableOpacity> */}
