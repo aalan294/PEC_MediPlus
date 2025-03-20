@@ -1,65 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, Linking, Platform, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { WalletConnectModal, useWalletConnectModal } from '@walletconnect/modal-react-native';
+import Web3 from 'web3';
+import axios from 'axios';
+import { abi } from '../abi';
+import { contractAddress } from '../contractAddress';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontAwesome5 } from '@expo/vector-icons';
 
-const projectId = 'f3c1be359046efb4c3f70c6d30d4f3fc';
+const AppointmentScreen = () => {
+  const { open, isConnected, provider } = useWalletConnectModal();
+  const [web3, setWeb3] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [patient, setPatient] = useState(null);
+  const [prescriptions, setPrescriptions] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [expandedRecord, setExpandedRecord] = useState(null);
 
-const providerMetadata = {
-  name: 'Your Project Name',
-  description: 'Description of your project',
-  url: 'https://your-project-website.com/',
-  icons: ['https://your-project-logo.com/logo.png'],
-  redirect: {
-    native: 'yourapp://', // Update this to your app's deep link scheme
-    universal: 'https://your-universal-link.com',
-  },
-};
-
-const AppointmentsScreen = () => {
-  const { open, isConnected, address, provider } = useWalletConnectModal();
-  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
+  // Keep existing Web3 setup
+  useEffect(() => {
+    if (isConnected && provider) {
+      const web3Instance = new Web3(provider);
+      const contractInstance = new web3Instance.eth.Contract(abi, contractAddress);
+      setWeb3(web3Instance);
+      setContract(contractInstance);
+    } else {
+      const ganacheUrl = 'http://192.168.32.227:8545';
+      const web3Instance = new Web3(new Web3.providers.HttpProvider(ganacheUrl));
+      const contractInstance = new web3Instance.eth.Contract(abi, contractAddress);
+      setWeb3(web3Instance);
+      setContract(contractInstance);
+    }
+  }, [isConnected, provider]);
 
   useEffect(() => {
-    checkMetaMaskInstallation();
+    const fetchPatientDetails = async () => {
+      try {
+        const storedUserDetails = await AsyncStorage.getItem('userDetails');
+        if (!storedUserDetails) {
+          throw new Error('User details not found in storage.');
+        }
+        const userDetails = JSON.parse(storedUserDetails);
+        const id = userDetails._id;
+        const response = await axios.get(`http://192.168.32.249:3500/doctor/get/${id}`);
+        setPatient(response.data.patient);
+      } catch (error) {
+        console.error('Error fetching patient details:', error);
+        Alert.alert('Error', 'Failed to fetch patient details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatientDetails();
   }, []);
 
-  const checkMetaMaskInstallation = async () => {
-    try {
-      if (Platform.OS === 'ios') {
-        const canOpen = await Linking.canOpenURL('metamask://');
-        setIsMetaMaskInstalled(canOpen);
-      } else if (Platform.OS === 'android') {
-        const canOpen = await Linking.canOpenURL('metamask://');
-        setIsMetaMaskInstalled(canOpen);
-      }
-    } catch (error) {
-      console.error('Error checking MetaMask installation:', error);
-      setIsMetaMaskInstalled(false);
-    }
-  };
-
-  const handleConnectWallet = async () => {
-    if (!isMetaMaskInstalled) {
-      const storeUrl = Platform.select({
-        ios: 'https://apps.apple.com/us/app/metamask/id1438144202',
-        android: 'https://play.google.com/store/apps/details?id=io.metamask',
-      });
-      Alert.alert(
-        'MetaMask Required',
-        'MetaMask is not installed. Please install it from the app store.',
-        [
-          {
-            text: 'Install MetaMask',
-            onPress: () => Linking.openURL(storeUrl),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-      return;
-    }
+  const fetchPrescriptionDetails = async (prescriptionId) => {
+    if (!contract || !prescriptionId || prescriptions[prescriptionId]) return;
 
     try {
-      await open(); // Opens the WalletConnect modal
+      const result = await contract.methods.getPrescription(prescriptionId).call();
+      setPrescriptions((prev) => ({
+        ...prev,
+        [prescriptionId]: result,
+      }));
     } catch (error) {
       console.error('Error fetching prescription:', error);
       Alert.alert('Error', 'Failed to fetch prescription details.');
@@ -87,37 +91,101 @@ const AppointmentsScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Appointments</Text>
-      {isConnected ? (
-        <View>
-          <Text style={styles.connectedText}>
-            Connected Wallet: {address.slice(0, 6)}...{address.slice(-4)}
-          </Text>
-          <Button title="Disconnect Wallet" onPress={handleDisconnectWallet} />
-        </View>
-      ) : (
-        <Button title="Connect Wallet" onPress={handleConnectWallet} />
-      )}
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Medical History</Text>
+        <Text style={styles.headerSubtitle}>View your past medical records and prescriptions</Text>
+      </View>
 
-      <WalletConnectModal
-        projectId={projectId}
-        providerMetadata={providerMetadata}
-        explorerRecommendedWalletIds={[
-          'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
-        ]}
-        explorerExcludedWalletIds={'ALL'}
-      />
-    </View>
+      <View style={styles.historyContainer}>
+        {patient.history && patient.history.length > 0 ? (
+          patient.history.map((record, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.recordCard, expandedRecord === index && styles.expandedCard]}
+              onPress={() => {
+                setExpandedRecord(expandedRecord === index ? null : index);
+                fetchPrescriptionDetails(record.prescriptionId);
+              }}
+            >
+              <View style={styles.recordHeader}>
+                <View style={styles.recordIcon}>
+                  <FontAwesome5 name="file-medical" size={20} color="#4A90E2" />
+                </View>
+                <View style={styles.recordInfo}>
+                  <Text style={styles.recordDate}>{record.date}</Text>
+                  <Text style={styles.recordDoctor}>Dr. {record.doctor}</Text>
+                  <Text style={styles.prescriptionId}>Prescription #{record.prescriptionId}</Text>
+                </View>
+                <FontAwesome5 
+                  name={expandedRecord === index ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#4A90E2" 
+                />
+              </View>
+              
+              {expandedRecord === index && prescriptions[record.prescriptionId] && (
+                <View style={styles.recordDetails}>
+                  <View style={styles.medicineSection}>
+                    <View style={styles.sectionHeader}>
+                      <FontAwesome5 name="pills" size={16} color="#4A90E2" />
+                      <Text style={styles.sectionTitle}>Prescribed Medicines</Text>
+                    </View>
+                    {prescriptions[record.prescriptionId].medicines.map((medicine, idx) => (
+                      <View key={idx} style={styles.medicineItem}>
+                        <FontAwesome5 name="dot-circle" size={12} color="#4A90E2" />
+                        <Text style={styles.medicineText}>{medicine}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.allergySection}>
+                    <View style={styles.sectionHeader}>
+                      <FontAwesome5 name="exclamation-circle" size={16} color="#E53E3E" />
+                      <Text style={styles.allergyTitle}>Allergies & Notes</Text>
+                    </View>
+                    <Text style={styles.allergyText}>
+                      {prescriptions[record.prescriptionId].allergies || 'No allergies reported'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyStateContainer}>
+            <FontAwesome5 name="notes-medical" size={50} color="#BBC5CE" />
+            <Text style={styles.emptyStateText}>No medical history available</Text>
+            <Text style={styles.emptyStateSubtext}>Your medical records will appear here</Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6FA',
-    alignItems: 'center',
+    backgroundColor: '#F5F8FB',
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F8FB',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#4A90E2',
+    fontSize: 16,
+  },
+  header: {
+    backgroundColor: '#4A90E2',
+    padding: 20,
+    paddingTop: 40,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
   headerTitle: {
     fontSize: 28,
@@ -194,6 +262,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#2C3E50',
+    marginLeft: 8,
+  },
+  medicineSection: {
     marginBottom: 20,
   },
   medicineItem: {
@@ -214,8 +286,48 @@ const styles = StyleSheet.create({
   },
   allergyTitle: {
     fontSize: 16,
-    marginBottom: 10,
-    color: 'green',
+    fontWeight: '600',
+    color: '#E53E3E',
+    marginLeft: 8,
+  },
+  allergyText: {
+    fontSize: 14,
+    color: '#4A5568',
+    marginTop: 8,
+    marginLeft: 24,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginTop: 20,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#BBC5CE',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#BBC5CE',
+    marginTop: 8,
+  },
+  errorCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    margin: 20,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 18,
+    color: '#FF6B6B',
+    fontWeight: '600',
   },
 });
 
