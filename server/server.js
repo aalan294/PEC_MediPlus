@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); //Dharaneedharan
 require('dotenv').config();
 const mongoose = require('mongoose');
 
